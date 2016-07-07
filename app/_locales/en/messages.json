@@ -1,0 +1,10 @@
+{
+  "appName": {
+    "message": "Tab Automator",
+    "description": "The name of the application"
+  },
+  "appDescription": {
+    "message": "Automate Chrome Tab Organization",
+    "description": "The description of the application"
+  }
+}
