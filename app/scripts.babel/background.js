@@ -57,6 +57,10 @@ chrome.tabs.onActivated.addListener((activeInfo) => {
   chrome.storage.local.get('storage', (data) => {
     const storage = data.storage;
 
+    if (!storage[activeInfo.tabId]) {
+      storage[activeInfo.tabId] = {};
+    }
+
     storage[activeInfo.tabId].open = Date.now();
 
     chrome.storage.local.set({ storage });
