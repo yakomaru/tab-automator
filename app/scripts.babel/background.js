@@ -1,4 +1,5 @@
 import _ from 'lodash';
+import Promise from 'bluebird';
 
 chrome.runtime.onInstalled.addListener(details => {
   console.log('previousVersion', details.previousVersion);
@@ -8,60 +9,83 @@ chrome.browserAction.setBadgeText({ text: '\'Allo' });
 
 console.log('\'Allo \'Allo! Event Page for Browser Action');
 
-setInterval(() => {
-  console.log(new Date());
-  chrome.tabs.query({}, (arr) => {
-    console.log(arr);
-    chrome.storage.local.get('storage', (data) => {
-      const storage = data.storage;
-      const existingTabIds = arr.reduce((obj, tab) => {
-        obj[tab.id] = true;
-        return obj;
-      }, {});
-      const tabsToRemove = [];
-
-      arr.forEach((tab) => {
-        if (!storage[tab.id]) storage[tab.id] = {};
-
-        const tabData = storage[tab.id];
-
-        if (tab.pinned || tab.active) return;
-
-        if (!tabData.open) {
-          tabData.open = Date.now();
-          storage[tab.id].open = tabData.open;
-        }
-
-        if (tabData.open < Date.now() - (1000 * 60 * 60 * 24)) {
-          tabsToRemove.push(tab.id);
-          delete storage[tab.id];
-        }
-      });
-
-      chrome.tabs.remove(tabsToRemove);
-
-      _.forEach(storage, (value, key) => {
-        if (!existingTabIds[key]) {
-          delete storage[key];
-        }
-      });
-
-      console.log(storage);
-
-      chrome.storage.local.set({ storage });
+const getAllTabs = () => (
+  new Promise((resolve) => {
+    chrome.tabs.query({}, (tabs) => {
+      resolve(tabs);
     });
-  });
-}, 1000 * 10);
+  })
+);
 
-chrome.tabs.onActivated.addListener((activeInfo) => {
-  chrome.storage.local.get('storage', (data) => {
-    const storage = data.storage;
+const getStorage = () => (
+  new Promise((resolve) => {
+    chrome.storage.local.get('storage', (data) => {
+      resolve(data.storage);
+    });
+  })
+);
 
-    if (!storage[activeInfo.tabId]) {
-      storage[activeInfo.tabId] = {};
+const updateActiveTab = (activeInfo, storage) => {
+  if (!storage[activeInfo.tabId]) {
+    storage[activeInfo.tabId] = {};
+  }
+
+  storage[activeInfo.tabId].open = Date.now();
+};
+
+const removeOldTabs = (tabs, storage) => {
+  const existingTabIds = tabs.reduce((obj, tab) => {
+    obj[tab.id] = true;
+
+    return obj;
+  }, {});
+  const tabsToRemove = [];
+
+  tabs.forEach((tab) => {
+    if (!storage[tab.id]) storage[tab.id] = {};
+
+    const tabData = storage[tab.id];
+
+    if (tab.pinned || tab.active) return;
+
+    if (!tabData.open) {
+      tabData.open = Date.now();
+
+      storage[tab.id].open = tabData.open;
     }
 
-    storage[activeInfo.tabId].open = Date.now();
+    if (tabData.open < Date.now() - (1000 * 60 * 60 * 24)) {
+      tabsToRemove.push(tab.id);
+
+      delete storage[tab.id];
+    }
+  });
+
+  chrome.tabs.remove(tabsToRemove);
+
+  _.forEach(storage, (value, key) => {
+    if (!existingTabIds[key]) {
+      delete storage[key];
+    }
+  });
+};
+
+chrome.tabs.onActivated.addListener((activeInfo) => {
+  let tabs = [];
+  let storage = {};
+
+  getAllTabs().then((data) => {
+    tabs = data;
+
+    return getStorage();
+  }).then((data) => {
+    storage = data;
+
+    console.log(new Date(), tabs, storage);
+
+    updateActiveTab(activeInfo, storage);
+
+    removeOldTabs(tabs, storage);
 
     chrome.storage.local.set({ storage });
   });
