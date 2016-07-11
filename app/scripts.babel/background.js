@@ -25,7 +25,7 @@ setInterval(() => {
 
         const tabData = storage[tab.id];
 
-        if (tab.pinned) return;
+        if (tab.pinned || tab.active) return;
 
         if (!tabData.open) {
           tabData.open = Date.now();
