@@ -41,12 +41,20 @@ const removeOldTabs = (tabs, storage) => {
   }, {});
   const tabsToRemove = [];
 
+  tabs = tabs.filter((tab) => {
+    return !tab.pinned && !tab.active;
+  });
+
+  tabs.sort((a, b) => {
+    const tabDataA = storage[a.id];
+    const tabDataB = storage[b.id];
+    return tabDataA.open - tabDataB.open;
+  });
+console.log(tabs);
   tabs.forEach((tab) => {
     if (!storage[tab.id]) storage[tab.id] = {};
 
     const tabData = storage[tab.id];
-
-    if (tab.pinned || tab.active) return;
 
     if (!tabData.open) {
       tabData.open = Date.now();
@@ -54,7 +62,8 @@ const removeOldTabs = (tabs, storage) => {
       storage[tab.id].open = tabData.open;
     }
 
-    if (tabData.open < Date.now() - (1000 * 60 * 60 * 24)) {
+    if (tabData.open < Date.now() - (1000 * 60 * 60 * 24) &&
+      tabs.length - tabsToRemove.length > 5) {
       tabsToRemove.push(tab.id);
 
       delete storage[tab.id];
